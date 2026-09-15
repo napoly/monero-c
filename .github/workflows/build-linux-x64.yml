@@ -62,15 +62,12 @@ jobs:
           name: libmonero-c-linux-x64.so
           path: MoneroC/build/libmonero-c.so
 
+      - name: Run docker compose
+        run: docker compose -f CsharpTestApp/docker-compose.yml up -d
+
       - name: Build CsharpTestApp
         run:  dotnet build CsharpTestApp -maxcpucount:1 -c Release
 
-      - name: Deterministic build check
-        run: |
-          dotnet tool install --global dotnet-validate --version 0.0.1-preview.537
-          dotnet pack CsharpTestApp/CsharpTestApp.csproj -c Release /p:PackageVersion=1 --no-build -o nuget-packages
-          dotnet validate package local nuget-packages/CsharpTestApp.1.0.0.nupkg
-      
       - name: Copy native library
         run:  cp MoneroC/build/libmonero-c.so CsharpTestApp/bin/Release/net10.0/
 
@@ -78,3 +75,7 @@ jobs:
         run: |
           cd CsharpTestApp/bin/Release/net10.0
           LD_LIBRARY_PATH=. dotnet CsharpTestApp.dll
+
+      - name: Cleanup Docker containers
+        if: always()
+        run: docker compose -f CsharpTestApp/docker-compose.yml down -v

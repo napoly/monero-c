@@ -1,0 +1,33 @@
+services:
+
+  # The dev container is not used, it is just handy to run `docker compose up` to start all services
+  dev:
+    image: alpine:3.24.1
+    container_name: dev
+    command: [ "/bin/sh", "-c", "trap : TERM INT; while :; do echo Ready to code and debug like a rockstar!!!; sleep 2073600; done & wait" ]
+
+  node:
+    image: btcpayserver/monero:0.18.5.1
+    container_name: node
+    command: [
+      "monerod",
+      "--fixed-difficulty=150",
+      "--p2p-bind-ip=0.0.0.0",
+      "--p2p-bind-port=18080",
+      "--rpc-bind-port=18081",
+      "--log-level=2",
+      "--rpc-bind-ip=0.0.0.0",
+      "--confirm-external-bind",
+      "--regtest",
+      "--no-igd",
+      "--hide-my-port",
+      "--non-interactive"
+    ]
+    volumes:
+      - xmr_node_data:/data
+    ports:
+      - "18080:18080"
+      - "18081:18081"
+
+volumes:
+  xmr_node_data:

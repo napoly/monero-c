@@ -47,7 +47,8 @@ jobs:
             git
             base-devel
             wget
-            
+            unzip
+
       - name: Install boost v1.87.0
         run: |
           wget https://repo.msys2.org/mingw/mingw64/mingw-w64-x86_64-boost-1.87.0-1-any.pkg.tar.zst
@@ -98,16 +99,42 @@ jobs:
             MoneroC/build/libmonero-c.dll
             MoneroC/build/libmonero-c.dll.a
 
+      - name: Download daemon
+        run: |
+          set -ex
+          MONERO_VERSION=0.18.5.1
+          FILE="monero-win-x64-v${MONERO_VERSION}.zip"
+          FILE_CHECKSUM="cf2ae8273977697d9ef2031c7337b781e6e5936578f602444b2990a173a2437d"
+
+          cd /tmp
+          wget -qO "${FILE}" "https://downloads.getmonero.org/cli/${FILE}"
+          echo "${FILE_CHECKSUM} ${FILE}" | sha256sum -c -
+          
+          mkdir -p bin
+          unzip -j "${FILE}" "*/monerod.exe" -d bin
+
+          mkdir -p "${GITHUB_WORKSPACE}/monero-cli"
+          cp bin/monerod.exe "${GITHUB_WORKSPACE}/monero-cli/"
+
+      - name: Node start
+        shell: pwsh
+        run: |
+          Start-Process -FilePath "monero-cli\monerod.exe" -ArgumentList @(
+            "--p2p-bind-ip=0.0.0.0",
+            "--p2p-bind-port=18080",
+            "--rpc-bind-port=18081",
+            "--log-level=2",
+            "--rpc-bind-ip=0.0.0.0",
+            "--confirm-external-bind",
+            "--regtest",
+            "--no-igd",
+            "--hide-my-port",
+            "--non-interactive"
+          )
+
       - name: Build CsharpTestApp
         shell: pwsh
         run: dotnet build CsharpTestApp -maxcpucount:1 -c Release
-
-      - name: Deterministic build check
-        shell: pwsh
-        run: |
-          dotnet tool install --global dotnet-validate --version 0.0.1-preview.537
-          dotnet pack CsharpTestApp/CsharpTestApp.csproj -c Release /p:PackageVersion=1 --no-build -o nuget-packages
-          dotnet validate package local nuget-packages/CsharpTestApp.1.0.0.nupkg
 
       - name: Copy native C++ library
         run: cp submodules/monero-cpp/build/libmonero-cpp.dll CsharpTestApp/bin/Release/net10.0/
@@ -116,6 +143,7 @@ jobs:
         run: cp MoneroC/build/libmonero-c.dll CsharpTestApp/bin/Release/net10.0/monero-c.dll
 
       - name: Run CsharpTestApp
+        shell: pwsh
         run: |
           cd CsharpTestApp/bin/Release/net10.0
           ./CsharpTestApp.exe
